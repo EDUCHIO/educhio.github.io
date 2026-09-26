@@ -98,7 +98,7 @@ input[type=text]{width:100%}
 .saved small{color:var(--muted)}
 
 /* manual */
-.manbar{position:sticky;top:0;z-index:4;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line);margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+.manbar{background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line);margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
 .palette.big .sw{width:52px;height:52px}
 .mangrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
 .mcard{background:var(--panel);border:1px solid var(--line);border-radius:22px;display:flex;justify-content:center;padding:8px 0}
@@ -114,6 +114,25 @@ input[type=text]{width:100%}
   .ring{width:160px;height:160px;--r:60px}
   .ring .disc{width:62px;height:62px;font-size:26px}
   .ring .cb{width:34px;height:34px}
+}
+/* manual: lista */
+.mlist{display:flex;flex-direction:column;gap:6px}
+.mrow{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:6px}
+.mrow.off{opacity:.3}
+.mrow .disc{width:60px;height:60px;min-width:60px;margin:0;font-size:26px}
+.mrow .cb{flex:1;min-width:34px;height:60px;border-radius:14px;padding:0;border:3px solid #0006;font-size:22px;font-weight:900;color:#000}
+.mrow .cb.cur{border-color:#fff;box-shadow:0 0 0 3px #fff6 inset}
+.mhead{display:flex;gap:6px;padding:0 6px;position:sticky;top:0;z-index:3;background:var(--bg)}
+.mhead span{flex:1;min-width:34px;text-align:center;font-size:12px;font-weight:700;padding:4px 0}
+.mhead span:first-child{flex:none;width:60px}
+@media (max-width:600px){
+  .mlist{margin:0 -10px}
+  .mrow{gap:3px;padding:4px;border-radius:12px}
+  .mhead{gap:3px;padding:0 4px}
+  .mrow .cb{min-width:0;height:48px;border-radius:9px;border-width:2px;font-size:18px}
+  .mrow .disc{width:42px;height:42px;min-width:42px;font-size:19px;border-width:2px}
+  .mhead span{min-width:0;font-size:8.5px;overflow:hidden}
+  .mhead span:first-child{width:42px}
 }
 /* run */
 #run{position:fixed;inset:0;background:var(--bg);z-index:8;overflow:auto;display:none}
@@ -233,7 +252,9 @@ input[type=range]{width:160px;accent-color:var(--gold)}
       <div class="seg" id="manOffSeg"><button data-v="1" class="on">Se apaga al golpear</button><button data-v="0">Se queda prendido</button></div>
       <div class="btnrow"><button id="btnAllOn">Encender todos</button><button id="btnRandOne">1 al azar</button><button id="btnManOff">Apagar todos</button></div>
     </div>
-    <p class="hint">Toca un color del anillo para prender ese Pod de ese color · toca el centro para apagarlo (o prenderlo con el color de arriba).</p>
+    <div class="seg" id="manView"><button data-v="list">☰ Lista</button><button data-v="ring">◎ Anillo</button></div>
+    <p class="hint" id="manHint"></p>
+    <div id="manList" class="mlist"></div>
     <div class="mangrid" id="manGrid"></div>
   </section>
 </main>
@@ -598,7 +619,43 @@ function palette(boxId, selected, multi, onChange){
 palette("manPal", manColor, false, k=>manColor=k);
 $("manOffSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{ manOff=b.dataset.v==="1"; $("manOffSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); });
 const RING = ["verde","rojo","azul","amarillo","morado","cian","naranja","rosa","blanco"];
+const LINE = ["rojo","naranja","amarillo","verde","cian","azul","morado","rosa","blanco"];   // por parecido
+const SHORT = {rojo:"Rojo",naranja:"Naranja",amarillo:"Amar.",verde:"Verde",cian:"Cian",azul:"Azul",morado:"Morado",rosa:"Rosa",blanco:"Blanco"};
+let manView = store.get("manView","list");
+function setManView(v){
+  manView=v; store.set("manView",v);
+  $("manList").style.display = v==="list"?"":"none";
+  $("manGrid").style.display = v==="ring"?"":"none";
+  $("manView").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
+  $("manHint").textContent = v==="list"
+    ? "Cada fila es un Pod (1 arriba). Toca el color en su fila para prenderlo; mismo color otra vez = apagar. Baja por una columna para poner varios Pods del mismo color."
+    : "Toca un color del anillo para prender ese Pod de ese color · toca el centro para apagarlo.";
+}
+function manRow(i){
+  const list=$("manList");
+  if (!$("mhead")){
+    const h=document.createElement("div"); h.id="mhead"; h.className="mhead";
+    h.innerHTML="<span>Pod</span>"+LINE.map(k=>`<span style="color:${COLORS[k].css}">${SHORT[k]}</span>`).join("");
+    list.appendChild(h);
+  }
+  let el=$("mr"+i);
+  if (!el){
+    el=document.createElement("div"); el.id="mr"+i; el.className="mrow";
+    const disc=document.createElement("div"); disc.className="disc"; disc.textContent=i+1; disc.onclick=()=>manualToggle(i);
+    el.appendChild(disc);
+    LINE.forEach(k=>{
+      const b=document.createElement("button"); b.className="cb"; b.dataset.c=k; b.title=COLORS[k].name;
+      b.style.background=COLORS[k].css; b.onclick=()=>manualColor(i,k); el.appendChild(b);
+    });
+    list.appendChild(el);
+  }
+  const p=slots[i];
+  el.classList.toggle("off", !p || !p.connected);
+  paintDisc(el.querySelector(".disc"), p);
+  el.querySelectorAll(".cb").forEach(b=>{ const on=!!(p && p.color===b.dataset.c); b.classList.toggle("cur", on); b.textContent = on ? "✓" : ""; });
+}
 function manTile(i){
+  manRow(i);
   let el=$("mc"+i);
   if (!el){
     el=document.createElement("div"); el.id="mc"+i; el.className="mcard";
@@ -629,6 +686,8 @@ function manualToggle(i){
   const p=slots[i]; if(!p||!p.connected) return;
   if (p.color){ p.owner=null; p.off(); } else { p.owner={manual:true}; p.setColor(manColor, manOff); }
 }
+$("manView").querySelectorAll("button").forEach(b=>b.onclick=()=>setManView(b.dataset.v));
+setManView(manView);
 $("btnManOff").onclick=()=>{ if(E.active) stopRun("Apagado manual"); allOff(); };
 $("btnAllOn").onclick=()=>connectedPods().forEach(p=>{ p.owner={manual:true}; p.setColor(manColor, manOff); });
 $("btnRandOne").onclick=()=>{ const ps=connectedPods().filter(p=>!p.color); if(ps.length){ const p=pick(ps); p.owner={manual:true}; p.setColor(manColor, manOff);} };
