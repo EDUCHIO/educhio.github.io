@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<title>CEFOR Pod Lab</title>
+<style>
+:root{
+  --bg:#0b0f14; --panel:#131a22; --panel2:#1a2430; --line:#263241;
+  --text:#e8eef5; --muted:#8a9bb0; --gold:#f2b705; --ok:#2ecc71; --bad:#ff4d4f; --warn:#f0a020;
+  --r:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:0 0 84px}
+main{max-width:1100px;margin:0 auto;padding:12px 16px}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:10px 14px}
+button.primary{background:var(--gold);color:#111;border-color:var(--gold);font-weight:800}
+button.ghost{background:transparent}
+button.danger{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:800}
+button:disabled{opacity:.4;cursor:not-allowed}
+h1{font-size:20px;margin:0}
+h1 span{color:var(--gold)}
+h2{font-size:18px;margin:18px 0 10px}
+.top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+#msg{font-size:13px;color:var(--muted);min-height:18px;margin:2px 0 10px}
+#msg.err{color:var(--bad)}
+.screen{display:none}.screen.on{display:block}
+
+/* nav */
+nav{position:fixed;left:0;right:0;bottom:0;background:#0e141bf2;border-top:1px solid var(--line);display:flex;justify-content:center;gap:4px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5;backdrop-filter:blur(6px)}
+nav button{flex:1;max-width:200px;border:none;background:none;color:var(--muted);font-size:13px;padding:6px}
+nav button b{display:block;font-size:20px}
+nav button.on{color:var(--gold)}
+
+/* pods */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:10px}
+.pod{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:8px 6px;text-align:center;user-select:none}
+.pod.empty{opacity:.33;border-style:dashed}
+.disc{width:70px;height:70px;border-radius:50%;margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;background:#20282f;border:3px solid #2f3b47;transition:background .08s,box-shadow .08s;cursor:pointer}
+.disc.lit{color:#000;border-color:#fff8}
+.podinfo{font-size:11px;color:var(--muted);min-height:14px}
+.podbtns{display:flex;gap:4px;justify-content:center;margin-top:6px}
+.podbtns button{padding:4px 7px;font-size:12px;border-radius:8px}
+.st{position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:#555}
+.st.on{background:var(--ok)}.st.searching{background:var(--warn);animation:bl 1s infinite}@keyframes bl{50%{opacity:.3}}.st.demo{background:#3aa0ff}.st.lost{background:var(--bad)}
+.stb{position:absolute;top:6px;left:8px;font-size:10px;font-weight:800;color:var(--gold)}
+.flash{animation:fl .35s}@keyframes fl{0%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+/* logic cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.card{background:linear-gradient(160deg,#1c2836,#121a24);border:1px solid var(--line);border-radius:var(--r);padding:14px;text-align:left;min-height:150px;display:flex;flex-direction:column;gap:6px}
+.card b{font-size:17px}
+.card small{color:var(--muted);font-size:12.5px;line-height:1.35}
+.card .ico{display:flex;gap:5px;margin-bottom:4px}
+.card .ico i{width:16px;height:16px;border-radius:50%;background:#4a5563;display:block}
+.card.cefor{border-color:#f2b70566}
+.tag{font-size:10px;color:#111;background:var(--gold);border-radius:6px;padding:1px 6px;font-weight:800;align-self:flex-start}
+
+/* wizard */
+.wiz-h{display:flex;align-items:center;justify-content:space-between;margin:6px 0 12px}
+.dots{display:flex;gap:6px}.dots i{width:9px;height:9px;border-radius:50%;background:#3a4656;display:block}.dots i.on{background:var(--gold)}
+.box{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:10px}
+.line{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.line>div:first-child b{display:block;font-size:15.5px}
+.line>div:first-child small{color:var(--muted);font-size:12px}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{width:44px;height:44px;padding:0;font-size:22px;font-weight:700;border-radius:12px}
+.stepper span{min-width:36px;text-align:center;font-size:20px;font-weight:800}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:3px;margin-top:10px}
+.seg button{flex:1;border:none;background:none;border-radius:9px;padding:10px 6px;color:var(--muted);font-size:14px}
+.seg button.on{background:var(--gold);color:#111;font-weight:800}
+.sub{margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.sub label{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+input[type=number],input[type=text],select{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:92px}
+input[type=text]{width:100%}
+.station{margin-bottom:12px}
+.station h3{font-size:15px;margin:10px 0 8px;color:var(--gold)}
+.player{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:6px}
+.player input{flex:1}
+.cdot{width:40px;height:40px;border-radius:50%;border:3px solid #fff3;flex:none;padding:0}
+.palette{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.sw{width:34px;height:34px;border-radius:50%;border:3px solid transparent;padding:0}
+.sw.sel{border-color:#fff}
+.wiz-foot{display:flex;justify-content:space-between;gap:10px;margin-top:14px}
+.wiz-foot button{padding:14px 22px;font-size:16px}
+.bigbtns{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.bigbtns button{padding:16px;font-size:17px;border-radius:14px}
+.hint{font-size:12.5px;color:var(--muted);margin:4px 0}
+.warnbox{color:var(--warn);font-size:13px;margin-top:8px}
+
+/* saved */
+.saved{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.saved small{color:var(--muted)}
+
+/* run */
+#run{position:fixed;inset:0;background:var(--bg);z-index:8;overflow:auto;display:none}
+#run.on{display:block}
+.runtop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.clock{font-size:46px;font-weight:900;font-variant-numeric:tabular-nums}
+.phase{font-size:14px;color:var(--gold);font-weight:700}
+.mini{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:8px;margin:12px 0}
+.mini .disc{width:50px;height:50px;font-size:18px;margin:0 auto}
+.mini .lab{font-size:10px;color:var(--muted);text-align:center;margin-top:2px}
+.stcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.stcard{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.stcard h3{margin:0 0 8px;font-size:15px;color:var(--gold)}
+.prow{display:grid;grid-template-columns:18px 1fr repeat(4,auto);gap:8px;align-items:center;font-size:13.5px;padding:5px 0;border-top:1px solid var(--line)}
+.prow i{width:16px;height:16px;border-radius:50%;display:block}
+.prow .n{font-weight:800;font-size:18px;text-align:right;min-width:30px}
+.prow .m{color:var(--muted);font-size:11px;text-align:right}
+.prow.head{border-top:none;color:var(--muted);font-size:11px}
+.live{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.live button{padding:14px 18px;font-size:16px}
+input[type=range]{width:160px;accent-color:var(--gold)}
+#log{margin-top:10px;max-height:160px;overflow:auto;font-size:12px;font-family:ui-monospace,Consolas,monospace;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px}
+#log .ok{color:var(--ok)}#log .bad{color:var(--bad)}#log .miss{color:var(--warn)}
+#overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:#000c;z-index:9;text-align:center}
+#overlay b{font-size:120px;color:var(--gold);line-height:1}
+#overlay span{font-size:18px;color:var(--text);margin-top:10px}
+@media (max-width:600px){.disc{width:60px;height:60px;font-size:22px}.grid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}.clock{font-size:38px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1>CEFOR <span>Pod Lab</span></h1>
+    <div class="btnrow">
+      <button class="primary" id="btnConnect">+ Conectar Pod</button>
+      <button id="btnAuto">🔄 Conectar guardados</button>
+      <button id="btnDemo">Demo</button>
+      <button id="btnAllOff">Apagar todos</button>
+      <button id="btnBlink" title="Parpadeo de los Pods conectados que no se están usando">💤 Parpadeo: sí</button>
+    </div>
+  </div>
+  <div id="msg"></div>
+
+  <!-- ================= PODS ================= -->
+  <section class="screen on" id="scr-pods">
+    <div class="grid" id="grid"></div>
+    <p class="hint">Los Pods se reparten en estaciones por número: con 2 estaciones de 3 Pods, la Estación 1 usa los Pods 1-3 y la Estación 2 los Pods 4-6. Usa 💡 para ver cuál es cuál.</p>
+  </section>
+
+  <!-- ================= ACTIVIDADES ================= -->
+  <section class="screen" id="scr-act">
+    <div id="actHome">
+      <h2>Elige la lógica de luz</h2>
+      <div class="cards" id="cards"></div>
+      <h2>Mis actividades</h2>
+      <div id="savedList"></div>
+    </div>
+
+    <div id="wizard" style="display:none">
+      <div class="wiz-h"><div><b id="wizTitle" style="font-size:19px"></b><div class="hint" id="wizStepName"></div></div><div class="dots" id="wizDots"><i></i><i></i><i></i></div></div>
+
+      <!-- Paso 1 -->
+      <div class="wstep" id="w1">
+        <div class="box"><div class="line"><div><b>Estaciones</b><small>Grupos de Pods independientes</small></div><div class="stepper" data-k="stations"></div></div></div>
+        <div class="box"><div class="line"><div><b>Pods</b><small>por estación</small></div><div class="stepper" data-k="podsPer"></div></div></div>
+        <div class="box"><div class="line"><div><b>Jugadores</b><small>por estación</small></div><div class="stepper" data-k="playersPer"></div></div>
+          <div id="compBox"><div class="hint" style="margin-top:10px">Modo de competencia</div>
+            <div class="seg" data-k="competition"><button data-v="regular">Normal</button><button data-v="first">Primero en golpear</button></div></div>
+        </div>
+        <div class="box lopt" data-for="allAtOnce"><div class="line"><div><b>Pods a la vez</b><small>por jugador</small></div><div class="stepper" data-k="aao"></div></div></div>
+        <div class="box lopt" data-for="focus"><div class="line"><div><b>Señuelos a la vez</b><small>por jugador (no se apagan)</small></div><div class="stepper" data-k="decoys"></div></div></div>
+        <div class="box lopt" data-for="sequence"><div class="line"><div><b>Orden de la secuencia</b><small>Números de Pod dentro de la estación, separados por comas</small></div></div>
+          <input type="text" id="seqOrder" placeholder="1,2,3,4" style="margin-top:8px"></div>
+        <div class="box lopt" data-for="sequence rotate"><div class="line"><div><b>Dirección</b></div></div>
+          <div class="seg" data-k="dir"><button data-v="1">Adelante →</button><button data-v="-1">← Atrás</button></div>
+          <div class="hint" style="margin-top:10px">Cambio de dirección automático</div>
+          <div class="seg" data-k="autoRev"><button data-v="0">No</button><button data-v="1">Cada 2–5</button><button data-v="2">Cada 4–8</button></div></div>
+        <div class="box lopt" data-for="rotate"><div class="line"><div><b>Velocidad de giro</b><small>segundos por paso</small></div><input type="number" id="rotSpeed" min="0.2" max="5" step="0.1"></div></div>
+        <div class="warnbox" id="w1warn"></div>
+      </div>
+
+      <!-- Paso 2 -->
+      <div class="wstep" id="w2">
+        <div id="playersBox"></div>
+        <div class="box lopt" data-for="focus rotate"><b>Colores señuelo</b><div class="hint">Toca para activar/desactivar</div><div class="palette" id="decoyPal"></div></div>
+        <div class="box"><div class="line"><div><b>Se apaga con</b><small>Cuándo termina cada estímulo</small></div></div>
+          <div class="seg" data-k="lightsOut"><button data-v="hit">Golpe</button><button data-v="timeout">Tiempo</button><button data-v="both">Golpe o tiempo</button></div>
+          <div class="sub" id="toSub"><label>Tiempo encendido (s) <input type="number" id="timeout" min="0.2" max="30" step="0.1"></label></div></div>
+        <div class="box"><div class="line"><div><b>Pausa antes de encender</b><small>Retraso entre estímulos</small></div></div>
+          <div class="seg" data-k="delayMode"><button data-v="none">Ninguna</button><button data-v="fixed">Fija</button><button data-v="random">Aleatoria</button></div>
+          <div class="sub" id="dlSub"><label id="dlMinL">Pausa (s) <input type="number" id="delayMin" min="0" max="10" step="0.1"></label><label id="dlMaxL">hasta (s) <input type="number" id="delayMax" min="0" max="10" step="0.1"></label></div></div>
+      </div>
+
+      <!-- Paso 3 -->
+      <div class="wstep" id="w3">
+        <div class="box"><div class="line"><div><b>Duración</b></div></div>
+          <div class="seg" data-k="durType"><button data-v="time">Tiempo</button><button data-v="hits">Aciertos</button><button data-v="either">Tiempo o aciertos</button></div>
+          <div class="sub"><label id="durTL">Tiempo (s) <input type="number" id="durTime" min="5" max="1800"></label><label id="durHL">Aciertos por jugador <input type="number" id="durHits" min="1" max="500"></label></div></div>
+        <div class="box"><div class="line"><div><b>Ciclos</b><small>Repeticiones de la actividad</small></div><div class="stepper" data-k="cycles"></div></div>
+          <div class="sub" id="restSub"><label>Descanso entre ciclos (s) <input type="number" id="rest" min="0" max="600"></label></div></div>
+        <div class="box"><div class="line"><div><b>Nombre</b><small>Para guardarla en “Mis actividades”</small></div></div><input type="text" id="actName" style="margin-top:8px"></div>
+        <div class="bigbtns">
+          <button class="primary" id="btnStartNow">▶ Iniciar ahora</button>
+          <button id="btnStartHit">👊 Iniciar con golpe</button>
+          <button id="btnSave">💾 Guardar</button>
+        </div>
+      </div>
+
+      <div class="wiz-foot"><button class="ghost" id="wizBack">Atrás</button><button class="primary" id="wizNext">Siguiente</button></div>
+    </div>
+  </section>
+
+  <!-- ================= MANUAL ================= -->
+  <section class="screen" id="scr-man">
+    <h2>Control manual</h2>
+    <p class="hint">Toca un Pod (aquí o en la pestaña Pods) para prenderlo con el color elegido; tócalo otra vez para apagarlo. También funciona durante una actividad.</p>
+    <div class="box"><b>Color</b><div class="palette" id="manPal"></div>
+      <div class="seg" id="manOffSeg"><button data-v="1" class="on">Se apaga al golpear</button><button data-v="0">Se queda prendido</button></div></div>
+    <div class="grid" id="manGrid"></div>
+    <div class="btnrow" style="margin-top:12px"><button id="btnAllOn">Encender todos</button><button id="btnRandOne">Encender 1 al azar</button></div>
+  </section>
+</main>
+
+<nav>
+  <button data-s="pods" class="on"><b>◉</b>Pods</button>
+  <button data-s="act"><b>▶</b>Actividades</button>
+  <button data-s="man"><b>✋</b>Manual</button>
+</nav>
+
+<!-- ================= EJECUCIÓN ================= -->
+<div id="run"><main>
+  <div class="runtop">
+    <div><div class="phase" id="runPhase"></div><div class="clock" id="runClock">0.0</div><div class="hint" id="runInfo"></div></div>
+    <button class="danger" id="btnStop" style="padding:16px 22px;font-size:17px">■ Detener</button>
+  </div>
+  <div class="live">
+    <button id="btnReverse">⇄ Invertir dirección</button>
+    <label class="hint" style="display:flex;gap:8px;align-items:center">Velocidad <input type="range" id="liveSpeed" min="0.3" max="2.5" step="0.05" value="1"> <span id="liveSpeedV">1.0×</span></label>
+  </div>
+  <div class="mini" id="mini"></div>
+  <div class="stcards" id="stcards"></div>
+  <div id="log"></div>
+  <div class="btnrow" style="margin-top:12px"><button id="btnCloseRun" style="display:none">Cerrar resultados</button></div>
+</main></div>
+<div id="overlay"><b id="ovBig"></b><span id="ovTxt"></span></div>
+<div id="numDlg" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#000c;z-index:10">
+  <div style="background:var(--panel2);border:1px solid var(--line);border-radius:18px;padding:18px;max-width:420px;width:92%">
+    <b style="font-size:18px">¿Qué número tiene pintado este Pod?</b>
+    <p class="hint" id="numHint">El Pod está parpadeando en blanco. Elige su número; la app lo recordará siempre.</p>
+    <div id="numGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0"></div>
+    <button id="numSkip" class="ghost" style="width:100%">Después</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============ Protocolo BlazePod ============ */
+const MFR_ID = 0x09D7;
+const SVC = { uart:"6e400001-b5a3-f393-e0a9-e50e24dcca9e", color:"50c97bfa-4cb8-4c84-b745-0e58a0280cd6", tap:"50c928bd-4cb8-4c84-b745-0e58a0280cd6" };
+const CH  = { auth:"6e400002-b5a3-f393-e0a9-e50e24dcca9e", color:"50c912a2-4cb8-4c84-b745-0e58a0280cd6", tap:"50c9727e-4cb8-4c84-b745-0e58a0280cd6" };
+function authPayload(mfr){
+  const t = mfr.slice(-5), off = t[0];
+  const poly = (0xEDB88321 + (off % 50)) >>> 0;
+  let crc = 0xFFFFFFFF;
+  for (let i=1;i<5;i++){ crc=(crc^t[i])>>>0; for(let j=0;j<8;j++) crc=(crc&1)?((crc>>>1)^poly)>>>0:crc>>>1; }
+  crc=(crc^0xFFFFFFFF)>>>0; crc=(crc+((crc<<3)>>>0))>>>0; crc=(crc^(crc>>>11))>>>0; crc=(crc+((crc<<15)>>>0))>>>0;
+  return new Uint8Array([0x73,0x65,0x61,crc&255,(crc>>>8)&255,(crc>>>16)&255,(crc>>>24)&255]);
+}
+const COLORS = {
+  verde:{rgb:[0,255,0],css:"#22e05a",name:"Verde"}, rojo:{rgb:[255,0,0],css:"#ff3030",name:"Rojo"},
+  azul:{rgb:[0,0,255],css:"#2f6bff",name:"Azul"}, morado:{rgb:[160,0,255],css:"#a445ff",name:"Morado"},
+  amarillo:{rgb:[255,170,0],css:"#ffd21f",name:"Amarillo"}, cian:{rgb:[0,255,255],css:"#27e6f0",name:"Cian"},
+  naranja:{rgb:[255,50,0],css:"#ff7a1a",name:"Naranja"}, rosa:{rgb:[255,0,120],css:"#ff3fa4",name:"Rosa"},
+  blanco:{rgb:[255,255,255],css:"#ffffff",name:"Blanco"},
+};
+const CKEYS = Object.keys(COLORS);
+const PLAYER_ORDER = ["verde","cian","rosa","naranja","amarillo","azul","morado","rojo"];
+function colorBytes(key, offOnTap){
+  if (!key) return new Uint8Array([0,0,0]);
+  const [r,g,b] = COLORS[key].rgb;
+  return offOnTap ? new Uint8Array([g,b,r,1]) : new Uint8Array([g,b,r]);
+}
+
+/* ============ Utilidades ============ */
+const $ = id=>document.getElementById(id);
+const sleep = ms=>new Promise(r=>setTimeout(r,ms));
+const pick = a=>a[Math.floor(Math.random()*a.length)];
+const rint = (a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const shuffle = a=>{ a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+};
+function msg(t, err){ const m=$("msg"); m.textContent=t||""; m.className=err?"err":""; }
+
+/* ============ Pods ============ */
+const MAX = 12;
+const slots = Array(MAX).fill(null);
+class Pod {
+  constructor(num){ this.num=num; this.color=null; this.offOnTap=false; this.litAt=0; this.hits=0; this.status="demo"; this.owner=null; this.station=null; this.q=Promise.resolve(); }
+  get connected(){ return this.status==="on" || this.status==="demo"; }
+  setColor(key, offOnTap=false){
+    this.color=key; this.offOnTap=!!key && offOnTap; this.litAt=performance.now();
+    render(this);
+    return this.write(colorBytes(key, this.offOnTap));
+  }
+  off(){ return this.setColor(null); }
+  write(){ return Promise.resolve(); }
+  handleTap(stateByte, podMs){
+    const wasColor = this.color;
+    const ms = podMs!=null ? podMs : Math.round(performance.now()-this.litAt);
+    if (wasColor && this.offOnTap){ this.color=null; this.offOnTap=false; }
+    this.hits++; render(this, true);
+    onTap(this, wasColor, ms);
+  }
+}
+class DemoPod extends Pod { constructor(n){ super(n); this.status="demo"; } write(){ return new Promise(r=>setTimeout(r,10)); } }
+class BlePod extends Pod {
+  constructor(num, device){ super(num); this.device=device; this.status="connecting"; this.colorChar=null;
+    device.addEventListener("gattserverdisconnected", ()=>{
+      if (this.removed) return;
+      const was=this.status; this.status="lost"; this.color=null; render(this);
+      if (was==="on"){ msg(`Pod ${this.num} se desconectó. Reintentando…`, true); this.autoRetry(); }
+    });
+  }
+  /* reintenta solo hasta reconectar (Pod apagado, lejos o sin batería) */
+  async autoRetry(){
+    if (this.retrying) return; this.retrying=true;
+    for (let k=0;k<40 && !this.removed && this.status!=="on";k++){
+      this.status="searching"; render(this);
+      try{
+        await waitInRange(this.device, 8000);
+        await withTimeout(this.connect(), 15000);
+        msg(`Pod ${this.num} conectado ✔`); identify(this); break;
+      }catch(e){ this.status="lost"; render(this); await sleep(3000); }
+    }
+    this.retrying=false;
+  }
+  async connect(){
+    this.status="connecting"; render(this);
+    const mfr = await getMfr(this.device);
+    const server = await this.device.gatt.connect();
+    const authC = await (await server.getPrimaryService(SVC.uart)).getCharacteristic(CH.auth);
+    await authC.writeValueWithResponse(authPayload(mfr));
+    this.colorChar = await (await server.getPrimaryService(SVC.color)).getCharacteristic(CH.color);
+    const tapC = await (await server.getPrimaryService(SVC.tap)).getCharacteristic(CH.tap);
+    if (!this._bound){
+      tapC.addEventListener("characteristicvaluechanged", e=>{
+        const d=e.target.value, v=new Uint8Array(d.buffer, d.byteOffset, d.byteLength);
+        const ms = v.length>=5 ? (v[1]|v[2]<<8|v[3]<<16|v[4]<<24)>>>0 : null;
+        this.handleTap(v[0], ms);
+      });
+      this._bound=true;
+    }
+    await tapC.startNotifications();
+    this.status="on"; this.color=null; render(this);
+  }
+  write(bytes){
+    this.q = this.q.then(async ()=>{
+      if (this.status!=="on" || !this.colorChar) return;
+      try{ await this.colorChar.writeValueWithoutResponse(bytes); }
+      catch(e){ try{ await this.colorChar.writeValueWithResponse(bytes);}catch(e2){ console.warn(e2); } }
+    });
+    return this.q;
+  }
+}
+function withTimeout(p, ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error("TIMEOUT")), ms))]); }
+/* espera a que el Pod anuncie (prendido y cerca); de paso guarda su código */
+async function waitInRange(device, ms){
+  if (!device.watchAdvertisements) return;
+  const ac=new AbortController();
+  try{
+    await new Promise((res,rej)=>{
+      const to=setTimeout(()=>rej(new Error("NO_ADV")), ms);
+      device.addEventListener("advertisementreceived", ev=>{
+        const dv=ev.manufacturerData && ev.manufacturerData.get(MFR_ID);
+        if (dv){ store.set("mfr_"+device.id, Array.from(new Uint8Array(dv.buffer.slice(dv.byteOffset, dv.byteOffset+dv.byteLength)))); store.set("mfr_"+device.id+"_t", Date.now()); }
+        clearTimeout(to); res();
+      }, {once:true});
+      device.watchAdvertisements({signal:ac.signal}).catch(e=>{clearTimeout(to);rej(e);});
+    });
+  } finally { ac.abort(); }
+}
+/* Conecta sola a todos los Pods que ya autorizaste antes */
+let autoBusy=false;
+async function autoConnectSaved(manual){
+  if (!navigator.bluetooth) return;
+  if (!navigator.bluetooth.getDevices){
+    if (manual) msg("Para reconectar automático activa también chrome://flags/#enable-web-bluetooth-new-permissions-backend → Enabled y reinicia Chrome.", true);
+    return;
+  }
+  if (autoBusy) return; autoBusy=true;
+  try{
+    const devs = await navigator.bluetooth.getDevices();
+    const numMap = store.get("numMap",{});
+    const list = devs.filter(d=>!slots.some(p=>p && p.device && p.device.id===d.id))
+                     .sort((a,b)=>(numMap[a.id]??99)-(numMap[b.id]??99));
+    if (!list.length){ if(manual) msg(devs.length? "Todos tus Pods guardados ya están conectados." : "Aún no hay Pods guardados. Conéctalos una vez con “+ Conectar Pod”."); return; }
+    msg(`Buscando ${list.length} Pod(s) guardado(s)… prende los Pods.`);
+    for (const d of list){
+      let idx = numMap[d.id];
+      if (idx==null || (slots[idx] && slots[idx].status!=="demo")) idx = slots.findIndex(s=>!s || s.status==="demo");
+      if (idx<0) break;
+      numMap[d.id]=idx;
+      const pod=new BlePod(idx+1, d); slots[idx]=pod; pod.status="searching"; render(pod);
+      pod.autoRetry();          // en paralelo
+      await sleep(400);
+    }
+    store.set("numMap", numMap);
+  } catch(e){ if(manual) msg("No pude leer los Pods guardados: "+e.message, true); }
+  finally { autoBusy=false; }
+}
+async function getMfr(device){
+  // El código que anuncia el Pod CAMBIA cada vez que se prende: siempre se lee fresco.
+  const key="mfr_"+device.id, cached=store.get(key,null);
+  const fresh=store.get(key+"_t",0);
+  if (cached && Date.now()-fresh < 4000) return new Uint8Array(cached);   // recién leído por waitInRange
+  if (!device.watchAdvertisements){ if(cached) return new Uint8Array(cached); throw new Error("NO_WATCH"); }
+  const ac=new AbortController();
+  const data = await new Promise((res,rej)=>{
+    const to=setTimeout(()=>{ac.abort(); if(cached) res(new Uint8Array(cached)); else rej(new Error("NO_ADV"));},8000);
+    device.addEventListener("advertisementreceived", ev=>{
+      const dv=ev.manufacturerData && ev.manufacturerData.get(MFR_ID);
+      if (dv){ clearTimeout(to); ac.abort(); res(new Uint8Array(dv.buffer.slice(dv.byteOffset, dv.byteOffset+dv.byteLength))); }
+    });
+    device.watchAdvertisements({signal:ac.signal}).catch(e=>{clearTimeout(to);rej(e);});
+  });
+  store.set(key, Array.from(data)); store.set(key+"_t", Date.now());
+  return data;
+}
+
+/* ============ Conexión ============ */
+$("btnConnect").onclick = async ()=>{
+  if (!navigator.bluetooth){ msg("Este navegador no tiene Bluetooth web. Usa Google Chrome (PC o Android).", true); return; }
+  let device;
+  try{
+    device = await navigator.bluetooth.requestDevice({ filters:[{manufacturerData:[{companyIdentifier:MFR_ID}]}], optionalServices:[SVC.uart,SVC.color,SVC.tap], optionalManufacturerData:[MFR_ID] });
+  }catch(e){ if(e.name!=="NotFoundError") msg("No se eligió ningún Pod: "+e.message, true); return; }
+  const existing = slots.find(p=>p && p.device && p.device.id===device.id);
+  if (existing) return reconnect(existing);
+  const maxC = store.get("maxConn", 9);
+  if (slots.filter(p=>p && p.device && p.status==="on").length >= maxC){
+    msg(`Ya hay ${maxC} Pods conectados: es el máximo estable de este equipo. Quita uno (✕) para conectar otro.`, true); return; }
+  const numMap = store.get("numMap",{});
+  let idx = numMap[device.id];
+  if (idx==null || (slots[idx] && slots[idx].status!=="demo")) idx = slots.findIndex(s=>!s || s.status==="demo");
+  if (idx<0){ msg("Ya hay 12 Pods conectados.", true); return; }
+  const pod = new BlePod(idx+1, device); slots[idx]=pod; render(pod);
+  numMap[device.id]=idx; store.set("numMap", numMap);
+  try{
+    msg(`Conectando Pod…`); await pod.connect();
+    const fixed = store.get("numFixed",{});
+    if (!fixed[device.id]) await askNumber(pod, true);
+    msg(`Pod ${pod.num} conectado ✔ — queda guardado. Toca “+ Conectar Pod” para el siguiente.`); identify(pod);
+  }
+  catch(e){ connectError(pod,e); }
+};
+async function reconnect(pod){ try{ msg(`Reconectando Pod ${pod.num}…`); await pod.connect(); msg(`Pod ${pod.num} conectado ✔`); identify(pod);}catch(e){ connectError(pod,e);} }
+function connectError(pod,e){
+  pod.status="lost"; render(pod);
+  if (e.message==="NO_WATCH"||e.message==="NO_ADV") msg("Chrome no pudo leer el código del Pod. Activa chrome://flags → “Experimental Web Platform features” → Enabled, reinicia Chrome y vuelve a conectar. Revisa que el Pod esté prendido y cerca.", true);
+  else msg(`Error con Pod ${pod.num}: ${e.message}`, true);
+}
+$("btnAuto").onclick = ()=>autoConnectSaved(true);
+$("btnDemo").onclick = ()=>{ let n=0; for(let i=0;i<MAX;i++) if(!slots[i]){ slots[i]=new DemoPod(i+1); n++; } renderAll(); msg(n?`Modo demo: ${n} Pods simulados. Usa 👊 para simular un golpe.`:"No hay espacios libres."); };
+async function identify(pod){ for(let k=0;k<3;k++){ await pod.setColor("blanco"); await sleep(180); await pod.off(); await sleep(150);} }
+function removePod(pod){ pod.removed=true; if(pod.device && pod.device.gatt.connected) pod.device.gatt.disconnect(); slots[pod.num-1]=null; renderAll(); }
+function connectedPods(){ return slots.filter(p=>p && p.connected); }
+function allOff(){ slots.forEach(p=>{ if(p && p.connected){ p.owner=null; p.off(); } }); }
+$("btnAllOff").onclick = ()=>{ if(E.active) stopRun("Apagado manual"); allOff(); };
+
+/* ============ Número pintado de cada Pod ============ */
+function setPodNumber(pod, n){
+  const from=pod.num-1, to=n-1;
+  if (from===to) return;
+  const other=slots[to];
+  slots[to]=pod; slots[from]=other && other.status!=="demo" ? other : null;
+  pod.num=n; if (slots[from]) slots[from].num=from+1;
+  const numMap=store.get("numMap",{});
+  if (pod.device) numMap[pod.device.id]=to;
+  if (slots[from] && slots[from].device) numMap[slots[from].device.id]=from;
+  store.set("numMap",numMap);
+  renderAll();
+}
+function askNumber(pod, first){
+  return new Promise(res=>{
+    const dlg=$("numDlg"), grid=$("numGrid"); grid.innerHTML="";
+    let blinking=true;
+    (async()=>{ while(blinking && pod.status==="on"){ await pod.setColor("blanco"); await sleep(300); await pod.off(); await sleep(300);} })();
+    const done=(n)=>{
+      blinking=false; dlg.style.display="none";
+      if (n){ setPodNumber(pod,n); const f=store.get("numFixed",{}); if(pod.device) f[pod.device.id]=true; store.set("numFixed",f); }
+      res(n);
+    };
+    for (let n=1;n<=MAX;n++){
+      const o=slots[n-1], busy = o && o!==pod && o.status!=="demo";
+      const b=mkBtn(String(n), busy?`Ocupado por otro Pod (se intercambian)`:"", ()=>done(n));
+      b.style.cssText="padding:14px 0;font-size:20px;font-weight:800;"+(n===pod.num?"border-color:var(--gold);color:var(--gold);":"")+(busy?"opacity:.55;":"");
+      grid.appendChild(b);
+    }
+    $("numSkip").onclick=()=>done(null);
+    $("numHint").textContent = first ? "Pod nuevo: está parpadeando en blanco. Elige el número que tiene pintado; la app lo recordará siempre."
+                                     : "Está parpadeando en blanco. Elige su número (si ya lo tiene otro Pod, se intercambian).";
+    dlg.style.display="flex";
+  });
+}
+
+/* ============ Render de Pods ============ */
+function tile(container, prefix, i){
+  let el=$(prefix+i);
+  if (!el){
+    el=document.createElement("div"); el.id=prefix+i; el.className="pod";
+    el.innerHTML=`<span class="stb"></span><span class="st"></span><div class="disc">${i+1}</div><div class="podinfo"></div><div class="podbtns"></div>`;
+    el.querySelector(".disc").onclick=()=>manualToggle(i);
+    $(container).appendChild(el);
+  }
+  return el;
+}
+function miniTile(i){
+  let el=$("mp"+i);
+  if(!el){ el=document.createElement("div"); el.id="mp"+i; el.innerHTML=`<div class="disc">${i+1}</div><div class="lab"></div>`; el.querySelector(".disc").onclick=()=>manualToggle(i); $("mini").appendChild(el); }
+  return el;
+}
+function paintDisc(disc, p){
+  if (p && p.color){ const c=COLORS[p.color].css; disc.style.background=c; disc.style.boxShadow=`0 0 20px ${c}`; disc.classList.add("lit"); }
+  else { disc.style.background=""; disc.style.boxShadow=""; disc.classList.remove("lit"); }
+}
+function render(pod, flash){ if(pod) renderSlot(pod.num-1, flash); }
+function renderSlot(i, flash){
+  const p=slots[i];
+  for (const [cont,pre] of [["grid","pod"],["manGrid","mpod"]]){
+    const el=tile(cont,pre,i), disc=el.querySelector(".disc");
+    el.classList.toggle("empty", !p);
+    paintDisc(disc,p);
+    el.querySelector(".st").className="st "+(p?(p.status==="on"?"on":p.status==="demo"?"demo":p.status==="lost"?"lost":p.status==="searching"?"searching":""):"");
+    el.querySelector(".stb").textContent = p && p.station!=null ? "E"+(p.station+1) : "";
+    el.querySelector(".podinfo").textContent = !p?"vacío":p.status==="demo"?`demo · ${p.hits}`:p.status==="on"?`golpes ${p.hits}`:p.status==="lost"?"desconectado":p.status==="searching"?"buscando…":"conectando…";
+    const btns=el.querySelector(".podbtns"), key=p?p.status:"none";
+    if (btns.dataset.k!==key){
+      btns.dataset.k=key; btns.innerHTML="";
+      if (p){
+        if (p.status==="demo") btns.append(mkBtn("👊","Simular golpe",()=>p.handleTap(0,null)));
+        if (p.status==="lost" && p.device) btns.append(mkBtn("Reconectar","",()=>reconnect(p)));
+        else btns.append(mkBtn("💡","Identificar",()=>identify(p)));
+        if (p.device) btns.append(mkBtn("#","Cambiar número",()=>askNumber(p,false)));
+        btns.append(mkBtn("✕","Quitar",()=>removePod(p)));
+      }
+    }
+    if (flash){ disc.classList.remove("flash"); void disc.offsetWidth; disc.classList.add("flash"); }
+  }
+  if ($("run").classList.contains("on")){
+    const m=miniTile(i); m.style.display = p ? "" : "none";
+    paintDisc(m.querySelector(".disc"), p);
+    m.querySelector(".lab").textContent = p && p.station!=null ? "E"+(p.station+1) : "";
+    if (flash){ const d=m.querySelector(".disc"); d.classList.remove("flash"); void d.offsetWidth; d.classList.add("flash"); }
+  }
+}
+function mkBtn(t,title,fn){ const b=document.createElement("button"); b.textContent=t; b.title=title; b.onclick=fn; return b; }
+function renderAll(){ for(let i=0;i<MAX;i++) renderSlot(i); }
+
+/* ============ Navegación ============ */
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id==="scr-"+b.dataset.s));
+  if (b.dataset.s==="act") showActHome();
+});
+
+/* ============ Manual ============ */
+let manColor="verde", manOff=true;
+function palette(boxId, selected, multi, onChange){
+  const box=$(boxId); box.innerHTML="";
+  let sel=new Set(multi?selected:[selected]);
+  CKEYS.forEach(k=>{
+    const b=document.createElement("button"); b.className="sw"+(sel.has(k)?" sel":""); b.style.background=COLORS[k].css; b.title=COLORS[k].name;
+    b.onclick=()=>{ if(multi){ sel.has(k)?sel.delete(k):sel.add(k);} else { sel=new Set([k]); }
+      [...box.children].forEach((c,j)=>c.classList.toggle("sel", sel.has(CKEYS[j]))); onChange(multi?[...sel]:k); };
+    box.appendChild(b);
+  });
+}
+palette("manPal", manColor, false, k=>manColor=k);
+$("manOffSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{ manOff=b.dataset.v==="1"; $("manOffSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); });
+function manualToggle(i){
+  const p=slots[i]; if(!p||!p.connected) return;
+  if (p.color){ p.owner=null; p.off(); } else { p.owner={manual:true}; p.setColor(manColor, manOff); }
+}
+$("btnAllOn").onclick=()=>connectedPods().forEach(p=>{ p.owner={manual:true}; p.setColor(manColor, manOff); });
+$("btnRandOne").onclick=()=>{ const ps=connectedPods().filter(p=>!p.color); if(ps.length){ const p=pick(ps); p.owner={manual:true}; p.setColor(manColor, manOff);} };
+
+/* ============ Lógicas ============ */
+const LOGICS = {
+  random:   {name:"Aleatorio", desc:"Al golpear un Pod, se enciende otro al azar. Ideal para imprevisibilidad y reacción.", ico:["","","","c"]},
+  allAtOnce:{name:"Todos a la vez", desc:"Se encienden varios Pods al mismo tiempo; solo al apagarlos todos sale la siguiente tanda.", ico:["","","c","c"]},
+  focus:    {name:"Enfoque", desc:"Golpea solo tu color, rodeado de Pods señuelo de otros colores que no debes tocar.", ico:["r","r","","g"]},
+  homeBase: {name:"Base", desc:"Un Pod base al que vuelves después de cada Pod exterior que se enciende al azar.", ico:["","","","g"]},
+  sequence: {name:"Secuencia", desc:"Tú decides el orden en que se encienden los Pods, con cambios de dirección.", ico:["","c","",""]},
+  rotate:   {name:"Rotación", desc:"Todos prendidos y los colores giran en círculo; golpea solo tu color. Cambios de dirección al azar.", ico:["g","r","c","m"], cefor:true},
+};
+const ICOC={c:"#27e6f0",g:"#22e05a",r:"#ff3060",m:"#a445ff"};
+function buildCards(){
+  const box=$("cards"); box.innerHTML="";
+  for (const [k,l] of Object.entries(LOGICS)){
+    const b=document.createElement("button"); b.className="card"+(l.cefor?" cefor":"");
+    b.innerHTML=`<div class="ico">${l.ico.map(c=>`<i style="${c?`background:${ICOC[c]};box-shadow:0 0 8px ${ICOC[c]}`:""}"></i>`).join("")}</div><b>${l.name}</b><small>${l.desc}</small>${l.cefor?'<span class="tag">CEFOR</span>':""}`;
+    b.onclick=()=>openWizard(defaultCfg(k));
+    box.appendChild(b);
+  }
+}
+function defaultCfg(logic){
+  return { logic, name:LOGICS[logic].name, stations:1, podsPer: logic==="focus"?4: logic==="rotate"?6 : 3, playersPer:1, competition:"regular",
+    aao:2, decoys:2, seqOrder:"", dir:"1", autoRev:"1", rotSpeed:0.8,
+    players:[], decoyCols:["rojo","azul","morado"],
+    lightsOut:"hit", timeout:2, delayMode:"none", delayMin:0.5, delayMax:1.5,
+    durType:"time", durTime:30, durHits:20, cycles:1, rest:20 };
+}
+
+/* ============ Asistente ============ */
+let C=null, wstep=1, editIdx=-1;
+const LIM = {
+  stations:()=>[1, Math.min(12, Math.floor(12/C.podsPer)) || 1],
+  podsPer:()=>[1, Math.floor(12/C.stations)],
+  playersPer:()=>[1, Math.min(4, C.podsPer)],
+  aao:()=>[1, Math.max(1, Math.floor(C.podsPer/C.playersPer))],
+  decoys:()=>[1, Math.max(1, C.podsPer - C.playersPer)],
+  cycles:()=>[1, 20],
+};
+function clampAll(){ for(const k of ["stations","podsPer","playersPer","aao","decoys"]){ const [a,b]=LIM[k](); C[k]=Math.max(a,Math.min(b,C[k])); } }
+function ensurePlayers(){
+  const out=[];
+  for (let s=0;s<C.stations;s++){ const row=[];
+    for (let j=0;j<C.playersPer;j++){
+      const prev = C.players[s] && C.players[s][j], def=`Jugador ${s*C.playersPer+j+1}`;
+      row.push(prev ? {...prev, name: /^Jugador \d+$/.test(prev.name) ? def : prev.name} : {name:def, color: PLAYER_ORDER[j % PLAYER_ORDER.length]});
+    }
+    out.push(row);
+  }
+  C.players=out;
+}
+function openWizard(cfg, idx=-1){
+  C=JSON.parse(JSON.stringify(cfg)); editIdx=idx; wstep=1;
+  $("actHome").style.display="none"; $("wizard").style.display="";
+  $("wizTitle").textContent = "Crear: "+LOGICS[C.logic].name;
+  // inputs simples
+  for (const id of ["seqOrder","rotSpeed","timeout","delayMin","delayMax","durTime","durHits","rest"]){ $(id).value=C[id]; $(id).oninput=()=>{ C[id]= $(id).type==="number" ? parseFloat($(id).value) : $(id).value; }; }
+  $("actName").value=C.name; $("actName").oninput=()=>C.name=$("actName").value;
+  document.querySelectorAll(".lopt").forEach(o=>o.style.display = o.dataset.for.split(" ").includes(C.logic)?"":"none");
+  palette("decoyPal", C.decoyCols, true, ks=>C.decoyCols=ks);
+  showStep();
+}
+function refreshWizard(){
+  clampAll(); ensurePlayers();
+  document.querySelectorAll(".stepper").forEach(st=>{
+    const k=st.dataset.k, [a,b]=LIM[k]();
+    st.innerHTML=""; const minus=mkBtn("−","",()=>{C[k]--;refreshWizard();}), plus=mkBtn("+","",()=>{C[k]++;refreshWizard();});
+    minus.disabled=C[k]<=a; plus.disabled=C[k]>=b;
+    const v=document.createElement("span"); v.textContent=C[k]; st.append(minus,v,plus);
+  });
+  document.querySelectorAll(".seg[data-k]").forEach(sg=>{
+    const k=sg.dataset.k;
+    sg.querySelectorAll("button").forEach(b=>{ b.classList.toggle("on", String(C[k])===b.dataset.v); b.onclick=()=>{ C[k]=b.dataset.v; refreshWizard(); }; });
+  });
+  $("compBox").style.display = C.playersPer>1 && ["random","homeBase"].includes(C.logic) ? "" : "none";
+  if (!(C.playersPer>1 && ["random","homeBase"].includes(C.logic))) C.competition="regular";
+  $("toSub").style.display = C.lightsOut==="hit" ? "none":"";
+  $("dlSub").style.display = C.delayMode==="none" ? "none":"";
+  $("dlMaxL").style.display = C.delayMode==="random" ? "":"none";
+  $("dlMinL").firstChild.textContent = C.delayMode==="random" ? "De (s) " : "Pausa (s) ";
+  $("durTL").style.display = C.durType==="hits" ? "none":"";
+  $("durHL").style.display = C.durType==="time" ? "none":"";
+  $("restSub").style.display = C.cycles>1 ? "":"none";
+  const need=C.stations*C.podsPer, have=connectedPods().length;
+  $("w1warn").textContent = `Esta actividad usa ${need} Pods (${C.stations} estación${C.stations>1?"es":""} × ${C.podsPer}). Conectados ahora: ${have}.` + (have<need?" Conecta más Pods o usa Demo antes de iniciar.":"");
+  if (wstep===2) buildPlayers();
+}
+function buildPlayers(){
+  const box=$("playersBox"); box.innerHTML="";
+  C.players.forEach((row,s)=>{
+    const st=document.createElement("div"); st.className="station box";
+    const first=s*C.podsPer+1, last=first+C.podsPer-1;
+    st.innerHTML=`<h3>Estación ${s+1} <span class="hint">· Pods ${first}${last>first?"–"+last:""}</span></h3>`;
+    row.forEach((pl,j)=>{
+      const r=document.createElement("div"); r.className="player";
+      const dot=document.createElement("button"); dot.className="cdot"; dot.style.background=COLORS[pl.color].css; dot.title="Cambiar color";
+      const inp=document.createElement("input"); inp.type="text"; inp.value=pl.name; inp.oninput=()=>pl.name=inp.value;
+      const pal=document.createElement("div"); pal.className="palette"; pal.style.display="none";
+      dot.onclick=()=>{ pal.style.display = pal.style.display==="none"?"flex":"none"; };
+      CKEYS.filter(k=>k!=="blanco").forEach(k=>{ const b=document.createElement("button"); b.className="sw"+(k===pl.color?" sel":""); b.style.background=COLORS[k].css;
+        b.onclick=()=>{ pl.color=k; dot.style.background=COLORS[k].css; [...pal.children].forEach(c=>c.classList.toggle("sel",c===b)); pal.style.display="none"; }; pal.appendChild(b); });
+      const wrap=document.createElement("div"); wrap.style.flex="1"; wrap.append(inp,pal);
+      r.append(dot,wrap); st.appendChild(r);
+    });
+    box.appendChild(st);
+  });
+}
+function showStep(){
+  ["w1","w2","w3"].forEach((id,i)=>$(id).style.display = i+1===wstep ? "":"none");
+  [...$("wizDots").children].forEach((d,i)=>d.classList.toggle("on", i+1===wstep));
+  $("wizStepName").textContent = ["Configuración general","Colores y reglas de luz","Finalizar actividad"][wstep-1];
+  $("wizNext").style.visibility = wstep<3 ? "visible":"hidden";
+  $("wizBack").textContent = wstep===1 ? "Cancelar" : "Atrás";
+  refreshWizard(); window.scrollTo(0,0);
+}
+$("wizNext").onclick=()=>{ if(wstep<3){ wstep++; showStep(); } };
+$("wizBack").onclick=()=>{ if(wstep>1){ wstep--; showStep(); } else showActHome(); };
+function showActHome(){ $("wizard").style.display="none"; $("actHome").style.display=""; renderSaved(); }
+$("btnSave").onclick=()=>{
+  const list=store.get("acts",[]); const cfg=JSON.parse(JSON.stringify(C));
+  if (editIdx>=0 && list[editIdx]) list[editIdx]=cfg; else { list.push(cfg); editIdx=list.length-1; }
+  store.set("acts",list); msg(`Actividad “${C.name}” guardada ✔`);
+};
+$("btnStartNow").onclick=()=>startRun(C,false);
+$("btnStartHit").onclick=()=>startRun(C,true);
+function summary(c){
+  const d = c.durType==="time"?`${c.durTime}s`: c.durType==="hits"?`${c.durHits} aciertos`:`${c.durTime}s o ${c.durHits} aciertos`;
+  return `${LOGICS[c.logic].name} · ${c.stations} est. × ${c.podsPer} Pods · ${c.playersPer} jug/est · ${d}${c.cycles>1?` · ${c.cycles} ciclos`:""}`;
+}
+function renderSaved(){
+  const list=store.get("acts",[]), box=$("savedList"); box.innerHTML="";
+  if (!list.length){ box.innerHTML='<p class="hint">Aún no guardas actividades. Crea una arriba y toca “Guardar” en el último paso.</p>'; return; }
+  list.forEach((c,i)=>{
+    const r=document.createElement("div"); r.className="saved";
+    const t=document.createElement("div"); t.innerHTML=`<b></b><br><small></small>`; t.querySelector("b").textContent=c.name; t.querySelector("small").textContent=summary(c);
+    const bb=document.createElement("div"); bb.className="btnrow";
+    bb.append(mkBtn("▶","Iniciar",()=>startRun(c,false)), mkBtn("✎","Editar",()=>openWizard(c,i)), mkBtn("🗑","Borrar",()=>{ const l=store.get("acts",[]); l.splice(i,1); store.set("acts",l); renderSaved(); }));
+    r.append(t,bb); box.appendChild(r);
+  });
+}
+
+/* ============ Motor ============ */
+const E = { active:false, speed:1, timers:new Set() };
+function later(fn, ms){ const id=setTimeout(()=>{ E.timers.delete(id); if(E.active && !E.resting) fn(); }, Math.max(0,ms)); E.timers.add(id); return id; }
+function cancel(id){ if(id!=null){ clearTimeout(id); E.timers.delete(id);} }
+function clearTimers(){ E.timers.forEach(clearTimeout); E.timers.clear(); }
+const sp = ms=>ms/(E.speed||1);
+function delayMs(c){ if(c.delayMode==="fixed") return sp(c.delayMin*1000); if(c.delayMode==="random"){ const a=c.delayMin, b=Math.max(c.delayMin,c.delayMax); return sp((a+Math.random()*(b-a))*1000);} return 0; }
+function revEvery(c){ return c.autoRev==="1"?rint(2,5):c.autoRev==="2"?rint(4,8):Infinity; }
+
+class Station {
+  constructor(i, pods, players, c){
+    this.i=i; this.pods=pods; this.c=c; this.dir=parseInt(c.dir)||1; this.steps=0; this.nextRev=revEvery(c); this.errors=0; this.finished=false;
+    this.players=players.map((p,j)=>({...p, j, hits:0, errors:0, misses:0, times:[], done:false, cur:[], decoys:[], last:null, phase:0, ptr:null, tid:null}));
+    pods.forEach(p=>{ p.station=i; render(p); });
+    const ord=(c.seqOrder||"").split(/[ ,;]+/).map(x=>parseInt(x)-1).filter(x=>x>=0 && x<pods.length);
+    this.order = ord.length ? ord : pods.map((_,k)=>k);
+  }
+  label(){ return `E${this.i+1}`; }
+  free(except=[]){ return this.pods.filter(p=>!p.owner && !except.includes(p)); }
+  light(pod, color, player, role){
+    pod.owner={st:this, player, role, hit:false};
+    const off = role==="target" && this.c.lightsOut!=="timeout";
+    pod.setColor(color, off);
+  }
+  clear(pod){ if(pod.owner && pod.owner.st===this){ pod.owner=null; pod.off(); } }
+  reverse(){ this.dir*=-1; logLine(`${this.label()} ⇄ dirección ${this.dir>0?"adelante":"atrás"}`); }
+  autoReverse(){ this.steps++; if(this.steps>=this.nextRev){ this.steps=0; this.nextRev=revEvery(this.c); this.reverse(); } }
+  begin(){
+    this.players.forEach(p=>{ p.done=false; p.cur=[]; p.decoys=[]; p.phase=0; });
+    this.finished=false;
+    if (this.c.logic==="rotate") return this.rotateStep();
+    if (this.c.competition==="first") return this.round();
+    this.players.forEach((pl,j)=>later(()=>this.next(pl), j*60));
+  }
+  /* ---- un estímulo para un jugador ---- */
+  next(pl){
+    if (pl.done || this.finished) return;
+    const c=this.c, L=c.logic;
+    let targets=[];
+    if (L==="random"){
+      const f=this.free(), cand=f.length>1?f.filter(p=>p!==pl.last):f;
+      if (cand.length) targets=[pick(cand)];
+    } else if (L==="allAtOnce"){
+      targets=shuffle(this.free()).slice(0, c.aao);
+    } else if (L==="homeBase"){
+      const home=this.pods[0];
+      if (pl.phase%2===0 && !home.owner) targets=[home];
+      else { const f=this.free([home]); if(f.length) targets=[pick(f)]; }
+      pl.phase++;
+    } else if (L==="sequence"){
+      const n=this.order.length;
+      if (pl.ptr==null) pl.ptr = (this.dir>0?0:n-1) + pl.j*Math.floor(n/this.players.length)*this.dir;
+      else { this.autoReverse(); pl.ptr += this.dir; }
+      for (let k=0;k<n;k++){ const pod=this.pods[this.order[((pl.ptr%n)+n)%n]]; if(!pod.owner){ targets=[pod]; break; } pl.ptr+=this.dir; }
+    } else if (L==="focus"){
+      const f=this.free(); if (f.length) targets=[pick(f)];
+    }
+    if (!targets.length){ later(()=>this.next(pl), 150); return; }
+    targets.forEach(p=>this.light(p, pl.color, pl, "target"));
+    pl.cur=targets; pl.last=targets[targets.length-1];
+    if (L==="focus"){
+      const cols=c.decoyCols.filter(k=>!this.players.some(p=>p.color===k));
+      const ds=shuffle(this.free()).slice(0, c.decoys);
+      ds.forEach(p=>this.light(p, pick(cols.length?cols:["rojo"]), pl, "decoy"));
+      pl.decoys=ds;
+    }
+    if (c.lightsOut!=="hit") pl.tid=later(()=>this.timeUp(pl), sp(c.timeout*1000));
+  }
+  timeUp(pl){
+    const pend=pl.cur.filter(p=>!p.owner || !p.owner.hit);
+    if (pend.length && this.c.lightsOut==="both"){ pl.misses+=pend.length; logLine(`${this.label()} ${pl.name}: se le fue (${pend.length})`,"miss"); }
+    if (this.c.lightsOut==="timeout" && !pl.cur.some(p=>p.owner && p.owner.hit)){ pl.misses++; logLine(`${this.label()} ${pl.name}: no llegó`,"miss"); }
+    this.endStim(pl);
+  }
+  endStim(pl){
+    cancel(pl.tid); pl.tid=null;
+    pl.cur.forEach(p=>this.clear(p)); pl.decoys.forEach(p=>this.clear(p)); pl.cur=[]; pl.decoys=[];
+    renderStats(); if (this.checkDone(pl)) return;
+    later(()=>this.next(pl), delayMs(this.c));
+  }
+  /* ---- competencia: primero en golpear ---- */
+  round(){
+    if (this.finished) return;
+    const used=[]; this.rpods=[];
+    const home=this.pods[0], useHome = this.c.logic==="homeBase" && (this.rphase=(this.rphase||0)+1)%2===1;
+    for (const pl of this.players){
+      let f=this.free(used); if (this.c.logic==="homeBase" && !useHome) f=f.filter(p=>p!==home);
+      if (!f.length) break;
+      const pod = pick(f); used.push(pod); this.light(pod, pl.color, pl, "target"); this.rpods.push(pod);
+    }
+    if (this.c.lightsOut!=="hit") this.rtid=later(()=>{ this.players.forEach(p=>p.misses++); logLine(`${this.label()} nadie llegó`,"miss"); this.endRound(); }, sp(this.c.timeout*1000));
+  }
+  endRound(){ cancel(this.rtid); this.rpods.forEach(p=>this.clear(p)); this.rpods=[]; renderStats();
+    if (this.players.every(p=>this.checkDone(p,true))) return;
+    later(()=>this.round(), delayMs(this.c)); }
+  /* ---- rotación ---- */
+  rotateStep(){
+    if (this.finished) return;
+    const n=this.pods.length, c=this.c;
+    if (!this.pattern){
+      const dcols=c.decoyCols.filter(k=>!this.players.some(p=>p.color===k));
+      const gap=Math.max(1, Math.floor(n/this.players.length));
+      this.pattern=Array(n).fill(null).map((_,k)=>({col: dcols.length?dcols[k%dcols.length]:null, pl:null}));
+      this.players.forEach((pl,j)=>{ this.pattern[(j*gap)%n]={col:pl.color, pl}; });
+      this.offset=0;
+    } else { this.autoReverse(); this.offset=(this.offset+this.dir+n)%n; }
+    this.pods.forEach((pod,k)=>{
+      const cell=this.pattern[((k-this.offset)%n+n)%n];
+      if (cell.pl && cell.pl.done){ pod.owner=null; pod.off(); return; }
+      if (!cell.col){ pod.owner=null; pod.off(); return; }
+      this.light(pod, cell.col, cell.pl, cell.pl?"target":"decoy");
+    });
+    this.rtid=later(()=>this.rotateStep(), sp(Math.max(0.2,c.rotSpeed)*1000));
+  }
+  /* ---- golpes ---- */
+  onTap(pod, wasColor, ms){
+    const o=pod.owner;
+    if (!o || o.st!==this || !wasColor) return;
+    if (o.role==="decoy"){ this.errors++; if(o.player) o.player.errors++; logLine(`${this.label()} ✗ señuelo ${COLORS[wasColor].name} (Pod ${pod.num})`,"bad"); renderStats(); return; }
+    if (o.hit) return;
+    o.hit=true; const pl=o.player;
+    pl.hits++; pl.times.push(ms);
+    logLine(`${this.label()} ✔ ${pl.name} · Pod ${pod.num} · ${ms} ms`,"ok");
+    if (this.c.logic==="rotate"){ renderStats(); this.checkDone(pl); return; }
+    if (this.c.competition==="first"){ return this.endRound(); }
+    if (this.c.lightsOut==="timeout"){ renderStats(); return; } // sigue prendido hasta que se acabe el tiempo
+    pod.owner=null;
+    pl.cur=pl.cur.filter(p=>p!==pod);
+    if (!pl.cur.length) this.endStim(pl); else renderStats();
+  }
+  checkDone(pl, quiet){
+    const c=this.c;
+    if ((c.durType==="hits"||c.durType==="either") && pl.hits>=c.durHits*E.cycle && !pl.done){
+      pl.done=true; cancel(pl.tid); pl.cur.forEach(p=>this.clear(p)); pl.decoys.forEach(p=>this.clear(p)); pl.cur=[]; pl.decoys=[];
+      logLine(`${this.label()} 🏁 ${pl.name} completó ${c.durHits} aciertos`,"ok");
+    }
+    if (this.players.every(p=>p.done) && !this.finished){
+      this.finished=true; cancel(this.rtid); this.pods.forEach(p=>this.clear(p));
+      checkCycleEnd();
+    }
+    return pl.done;
+  }
+}
+
+function onTap(pod, wasColor, ms){
+  if (E.active && E.waitStart){ if(wasColor){ E.waitStart=false; pod.owner=null; pod.off(); beginCycle(); } return; }
+  if (E.active && pod.owner && pod.owner.st){ pod.owner.st.onTap(pod, wasColor, ms); return; }
+  if (wasColor){ logLine(`Pod ${pod.num} golpeado (${COLORS[wasColor].name}) · ${ms} ms`, "ok"); }
+  if (pod.owner && pod.owner.manual && !pod.color) pod.owner=null;
+}
+
+async function startRun(cfg, onHit){
+  const c=JSON.parse(JSON.stringify(cfg));
+  const pods=connectedPods().sort((a,b)=>a.num-b.num);
+  const need=c.stations*c.podsPer;
+  if (pods.length<need){ msg(`Esta actividad necesita ${need} Pods y hay ${pods.length} conectados.`, true); return; }
+  if ((c.logic==="focus"||c.logic==="rotate") && !c.decoyCols.filter(k=>!c.players.flat().some(p=>p.color===k)).length && c.logic==="focus"){ msg("Elige al menos un color señuelo distinto de los jugadores.", true); return; }
+  if (!c.players || c.players.length!==c.stations){ C=c; ensurePlayers(); c.players=C.players; }
+  if (E.active) stopRun();
+  allOff(); slots.forEach(p=>{ if(p){ p.station=null; p.owner=null; } });
+  Object.assign(E, { active:true, cfg:c, cycle:0, resting:false, waitStart:false, t0:0, speed:1 });
+  $("liveSpeed").value=1; $("liveSpeedV").textContent="1.0×";
+  E.stations = Array.from({length:c.stations}, (_,s)=>new Station(s, pods.slice(s*c.podsPer,(s+1)*c.podsPer), c.players[s], c));
+  $("run").classList.add("on"); $("mini").innerHTML=""; renderAll();
+  $("log").innerHTML=""; $("btnStop").style.display=""; $("btnCloseRun").style.display="none";
+  $("btnReverse").style.display = ["sequence","rotate"].includes(c.logic) ? "" : "none";
+  $("runInfo").textContent = summary(c);
+  renderStats();
+  if (onHit){
+    E.waitStart=true; $("runPhase").textContent="Golpea un Pod blanco para empezar";
+    E.stations.forEach(st=>{ const p=st.pods[0]; p.owner=null; p.setColor("blanco", true); });
+    return;
+  }
+  beginCycle();
+}
+async function beginCycle(){
+  E.cycle++; E.resting=false;
+  const c=E.cfg;
+  $("runPhase").textContent = c.cycles>1 ? `Ciclo ${E.cycle} de ${c.cycles}` : LOGICS[c.logic].name;
+  await overlayCount(["3","2","1"], c.cycles>1?`Ciclo ${E.cycle}`:"¡Prepárate!");
+  if (!E.active) return;
+  E.t0=performance.now(); E.cycleT0=E.t0;
+  logLine(`▶ ${c.cycles>1?`Ciclo ${E.cycle}: `:""}${LOGICS[c.logic].name}`);
+  E.stations.forEach(st=>{ st.pattern=null; st.begin(); });
+  clearInterval(E.clock); E.clock=setInterval(tickClock,100);
+}
+async function overlayCount(seq, txt){
+  const ov=$("overlay"); ov.style.display="flex"; $("ovTxt").textContent=txt||"";
+  for (const t of seq){ if(!E.active) break; $("ovBig").textContent=t; await sleep(700); }
+  ov.style.display="none";
+}
+function tickClock(){
+  if (!E.active || E.resting || !E.t0) return;
+  const t=(performance.now()-E.cycleT0)/1000, c=E.cfg;
+  $("runClock").textContent = (c.durType!=="hits" ? Math.max(0,c.durTime-t) : t).toFixed(1);
+  if (c.durType!=="hits" && t>=c.durTime) checkCycleEnd(true);
+}
+function checkCycleEnd(force){
+  if (!E.active || E.resting) return;
+  if (!force && !E.stations.every(s=>s.finished)) return;
+  clearTimers(); clearInterval(E.clock);
+  E.stations.forEach(s=>{ s.finished=true; s.players.forEach(p=>{ p.cur=[]; p.decoys=[]; p.done=true; }); });
+  allOff();
+  if (E.cycle < E.cfg.cycles){ rest(); } else stopRun("Actividad completada");
+}
+async function rest(){
+  E.resting=true; logLine(`⏸ Descanso ${E.cfg.rest}s`);
+  $("runPhase").textContent=`Descanso · sigue ciclo ${E.cycle+1} de ${E.cfg.cycles}`;
+  let left=E.cfg.rest;
+  while (left>0 && E.active){ $("runClock").textContent=left.toFixed(0); await sleep(1000); left--; }
+  if (E.active){ E.stations.forEach(s=>{ s.players.forEach(p=>{p.done=false;}); }); beginCycle(); }
+}
+function stopRun(reason){
+  if (!E.active) return;
+  E.active=false; E.waitStart=false; clearTimers(); clearInterval(E.clock);
+  $("overlay").style.display="none";
+  allOff();
+  logLine(`■ ${reason||"Detenido"}`);
+  $("runPhase").textContent = reason || "Detenido";
+  $("btnStop").style.display="none"; $("btnCloseRun").style.display="";
+  renderStats();
+}
+$("btnStop").onclick=()=>stopRun("Detenido por el entrenador");
+$("btnCloseRun").onclick=()=>{ $("run").classList.remove("on"); slots.forEach(p=>{ if(p) p.station=null; }); renderAll(); };
+$("btnReverse").onclick=()=>{ if(E.active) E.stations.forEach(s=>s.reverse()); };
+$("liveSpeed").oninput=()=>{ E.speed=+$("liveSpeed").value; $("liveSpeedV").textContent=E.speed.toFixed(2).replace(/0$/,"")+"×"; };
+
+function renderStats(){
+  const box=$("stcards"); if(!E.stations) return; box.innerHTML="";
+  E.stations.forEach(st=>{
+    const d=document.createElement("div"); d.className="stcard";
+    const n1=st.pods[0].num, n2=st.pods[st.pods.length-1].num;
+    let h=`<h3>Estación ${st.i+1} <span class="hint">· Pods ${n1}${n2>n1?"–"+n2:""}</span></h3><div class="prow head"><span></span><span>Jugador</span><span>Aciertos</span><span>Error</span><span>Falló</span><span>Prom ms</span></div>`;
+    st.players.forEach(p=>{
+      const avg=p.times.length?Math.round(p.times.reduce((a,b)=>a+b,0)/p.times.length):"–";
+      h+=`<div class="prow"><i style="background:${COLORS[p.color].css}"></i><span>${esc(p.name)}${p.done&&E.active&&!E.resting?" 🏁":""}</span><span class="n">${p.hits}</span><span class="m">${p.errors}</span><span class="m">${p.misses}</span><span class="m">${avg}</span></div>`;
+    });
+    d.innerHTML=h; box.appendChild(d);
+  });
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function logLine(t, cls){
+  const d=document.createElement("div"); if(cls) d.className=cls;
+  const s=E.active&&E.t0?((performance.now()-E.cycleT0)/1000).toFixed(1).padStart(5)+"s  ":"";
+  d.textContent=s+t; const L=$("log"); L.prepend(d); while(L.children.length>300) L.lastChild.remove();
+}
+
+/* ============ Parpadeo en espera ============ */
+/* Los Pods conectados y sin usar parpadean suave para saber que siguen enlazados */
+let idleBlink = store.get("idleBlink", true);
+const IDLE_ON = new Uint8Array([40,60,0]);   // G,B,R → cian tenue
+function blinkLabel(){ $("btnBlink").textContent = "💤 Parpadeo: " + (idleBlink ? "sí" : "no"); }
+$("btnBlink").onclick = ()=>{ idleBlink=!idleBlink; store.set("idleBlink", idleBlink); blinkLabel(); };
+blinkLabel();
+setInterval(()=>{
+  if (!idleBlink || (E.active && !E.waitStart && E.stations)) return;   // durante una actividad no parpadea
+  slots.forEach(p=>{
+    if (!p || p.status!=="on" || p.color || p.owner) return;
+    p.write(IDLE_ON).then(()=>sleep(160)).then(()=>{ if(!p.color) p.write(colorBytes(null)); });
+  });
+}, 2500);
+
+/* ============ Inicio ============ */
+buildCards(); renderAll(); renderSaved(); autoConnectSaved(false);
+if (!navigator.bluetooth) msg("Aviso: este navegador no tiene Bluetooth web. Para Pods reales usa Google Chrome. Puedes probar con “Demo”.", true);
+window.__podlab={authPayload, slots, E};
+</script>
+</body>
+</html>
