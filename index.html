@@ -12,6 +12,7 @@
   --r:16px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:17px}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 body{padding:0 0 84px}
 main{max-width:1100px;margin:0 auto;padding:12px 16px}
@@ -40,7 +41,7 @@ nav button.on{color:var(--gold)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:10px}
 .pod{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:8px 6px;text-align:center;user-select:none}
 .pod.empty{opacity:.33;border-style:dashed}
-.disc{width:70px;height:70px;border-radius:50%;margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;background:#20282f;border:3px solid #2f3b47;transition:background .08s,box-shadow .08s;cursor:pointer}
+.disc{width:80px;height:80px;border-radius:50%;margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;background:#20282f;border:3px solid #2f3b47;transition:background .08s,box-shadow .08s;cursor:pointer}
 .disc.lit{color:#000;border-color:#fff8}
 .podinfo{font-size:11px;color:var(--muted);min-height:14px}
 .podbtns{display:flex;gap:4px;justify-content:center;margin-top:6px}
@@ -96,6 +97,24 @@ input[type=text]{width:100%}
 .saved{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
 .saved small{color:var(--muted)}
 
+/* manual */
+.manbar{position:sticky;top:0;z-index:4;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line);margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+.palette.big .sw{width:52px;height:52px}
+.mangrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.mcard{background:var(--panel);border:1px solid var(--line);border-radius:22px;display:flex;justify-content:center;padding:8px 0}
+.mcard.off{opacity:.3}
+.ring{position:relative;width:200px;height:200px;--r:76px}
+.ring .disc{position:absolute;left:50%;top:50%;width:82px;height:82px;margin:0;transform:translate(-50%,-50%);font-size:34px}
+.ring .cb{position:absolute;width:44px;height:44px;border-radius:50%;padding:0;border:3px solid #0006;left:50%;top:50%}
+.ring .cb.cur{border-color:#fff;box-shadow:0 0 0 3px #fff5}
+@media (max-width:600px){
+  .manbar{position:static}
+  .palette.big .sw{width:40px;height:40px}
+  .mangrid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .ring{width:160px;height:160px;--r:60px}
+  .ring .disc{width:62px;height:62px;font-size:26px}
+  .ring .cb{width:34px;height:34px}
+}
 /* run */
 #run{position:fixed;inset:0;background:var(--bg);z-index:8;overflow:auto;display:none}
 #run.on{display:block}
@@ -209,12 +228,13 @@ input[type=range]{width:160px;accent-color:var(--gold)}
 
   <!-- ================= MANUAL ================= -->
   <section class="screen" id="scr-man">
-    <h2>Control manual</h2>
-    <p class="hint">Toca un Pod (aquí o en la pestaña Pods) para prenderlo con el color elegido; tócalo otra vez para apagarlo. También funciona durante una actividad.</p>
-    <div class="box"><b>Color</b><div class="palette" id="manPal"></div>
-      <div class="seg" id="manOffSeg"><button data-v="1" class="on">Se apaga al golpear</button><button data-v="0">Se queda prendido</button></div></div>
-    <div class="grid" id="manGrid"></div>
-    <div class="btnrow" style="margin-top:12px"><button id="btnAllOn">Encender todos</button><button id="btnRandOne">Encender 1 al azar</button></div>
+    <div class="manbar">
+      <div class="palette big" id="manPal"></div>
+      <div class="seg" id="manOffSeg"><button data-v="1" class="on">Se apaga al golpear</button><button data-v="0">Se queda prendido</button></div>
+      <div class="btnrow"><button id="btnAllOn">Encender todos</button><button id="btnRandOne">1 al azar</button><button id="btnManOff">Apagar todos</button></div>
+    </div>
+    <p class="hint">Toca un color del anillo para prender ese Pod de ese color · toca el centro para apagarlo (o prenderlo con el color de arriba).</p>
+    <div class="mangrid" id="manGrid"></div>
   </section>
 </main>
 
@@ -525,7 +545,8 @@ function paintDisc(disc, p){
 function render(pod, flash){ if(pod) renderSlot(pod.num-1, flash); }
 function renderSlot(i, flash){
   const p=slots[i];
-  for (const [cont,pre] of [["grid","pod"],["manGrid","mpod"]]){
+  manTile(i);
+  for (const [cont,pre] of [["grid","pod"]]){
     const el=tile(cont,pre,i), disc=el.querySelector(".disc");
     el.classList.toggle("empty", !p);
     paintDisc(disc,p);
@@ -576,10 +597,39 @@ function palette(boxId, selected, multi, onChange){
 }
 palette("manPal", manColor, false, k=>manColor=k);
 $("manOffSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{ manOff=b.dataset.v==="1"; $("manOffSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); });
+const RING = ["verde","rojo","azul","amarillo","morado","cian","naranja","rosa","blanco"];
+function manTile(i){
+  let el=$("mc"+i);
+  if (!el){
+    el=document.createElement("div"); el.id="mc"+i; el.className="mcard";
+    const ring=document.createElement("div"); ring.className="ring";
+    const disc=document.createElement("div"); disc.className="disc"; disc.textContent=i+1; disc.onclick=()=>manualToggle(i);
+    ring.appendChild(disc);
+    RING.forEach((k,j)=>{
+      const a=(j/RING.length)*360 - 90;
+      const b=document.createElement("button"); b.className="cb"; b.dataset.c=k; b.title=COLORS[k].name;
+      b.style.background=COLORS[k].css;
+      b.style.transform=`translate(-50%,-50%) rotate(${a}deg) translate(var(--r)) rotate(${-a}deg)`;
+      b.onclick=()=>manualColor(i,k);
+      ring.appendChild(b);
+    });
+    el.appendChild(ring); $("manGrid").appendChild(el);
+  }
+  const p=slots[i];
+  el.classList.toggle("off", !p || !p.connected);
+  paintDisc(el.querySelector(".disc"), p);
+  el.querySelectorAll(".cb").forEach(b=>b.classList.toggle("cur", !!(p && p.color===b.dataset.c)));
+}
+function manualColor(i,k){
+  const p=slots[i]; if(!p||!p.connected) return;
+  if (p.color===k){ p.owner=null; p.off(); return; }      // mismo color otra vez = apagar
+  p.owner={manual:true}; p.setColor(k, manOff);
+}
 function manualToggle(i){
   const p=slots[i]; if(!p||!p.connected) return;
   if (p.color){ p.owner=null; p.off(); } else { p.owner={manual:true}; p.setColor(manColor, manOff); }
 }
+$("btnManOff").onclick=()=>{ if(E.active) stopRun("Apagado manual"); allOff(); };
 $("btnAllOn").onclick=()=>connectedPods().forEach(p=>{ p.owner={manual:true}; p.setColor(manColor, manOff); });
 $("btnRandOne").onclick=()=>{ const ps=connectedPods().filter(p=>!p.color); if(ps.length){ const p=pick(ps); p.owner={manual:true}; p.setColor(manColor, manOff);} };
 
@@ -891,7 +941,7 @@ async function startRun(cfg, onHit){
   $("runInfo").textContent = summary(c);
   renderStats();
   if (onHit){
-    E.waitStart=true; $("runPhase").textContent="Golpea un Pod blanco para empezar";
+    await overlayCount(["●","●","●"], "Ubica tu estación y tu color"); if (!E.active) return; E.waitStart=true; $("runPhase").textContent="Golpea un Pod blanco para empezar";
     E.stations.forEach(st=>{ const p=st.pods[0]; p.owner=null; p.setColor("blanco", true); });
     return;
   }
@@ -908,9 +958,9 @@ async function beginCycle(){
   E.stations.forEach(st=>{ st.pattern=null; st.begin(); });
   clearInterval(E.clock); E.clock=setInterval(tickClock,100);
 }
-async function overlayCount(seq, txt){
+function stationPreview(on){ (E.stations||[]).forEach(st=>{ const cols=st.players.map(p=>p.color); st.pods.forEach((p,k)=>{ p.owner=null; if(on) p.setColor(cols[k % cols.length]); else p.off(); }); }); } async function overlayCount(seq, txt, preview=true){
   const ov=$("overlay"); ov.style.display="flex"; $("ovTxt").textContent=txt||"";
-  for (const t of seq){ if(!E.active) break; $("ovBig").textContent=t; await sleep(700); }
+  for (const t of seq){ if(!E.active) break; $("ovBig").textContent=t; if (preview){ stationPreview(true); await sleep(450); stationPreview(false); await sleep(250); } else await sleep(700); }
   ov.style.display="none";
 }
 function tickClock(){
