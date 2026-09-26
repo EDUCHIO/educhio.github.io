@@ -171,6 +171,7 @@ input[type=range]{width:160px;accent-color:var(--gold)}
       <button id="btnAuto">🔄 Conectar guardados</button>
       <button id="btnDemo">Demo</button>
       <button id="btnAllOff">Apagar todos</button>
+      <button id="btnBright" title="Brillo general de los Pods">☀ Brillo: Medio</button>
       <button id="btnBlink" title="Parpadeo de los Pods conectados que no se están usando">💤 Parpadeo: sí</button>
     </div>
   </div>
@@ -212,6 +213,7 @@ input[type=range]{width:160px;accent-color:var(--gold)}
           <div class="seg" data-k="autoRev"><button data-v="0">No</button><button data-v="1">Cada 2–5</button><button data-v="2">Cada 4–8</button></div></div>
         <div class="box lopt" data-for="rotate"><div class="line"><div><b>Velocidad de giro</b><small>segundos por paso</small></div><input type="number" id="rotSpeed" min="0.2" max="5" step="0.1"></div></div>
         <div class="warnbox" id="w1warn"></div>
+        <label class="chk" style="margin-top:10px;display:flex;gap:8px;align-items:center"><input type="checkbox" id="wizPrev"> Pulso tenue en los Pods mientras armo (para acomodarlos)</label>
       </div>
 
       <!-- Paso 2 -->
@@ -313,9 +315,13 @@ const COLORS = {
 };
 const CKEYS = Object.keys(COLORS);
 const PLAYER_ORDER = ["verde","cian","rosa","naranja","amarillo","azul","morado","rojo"];
-function colorBytes(key, offOnTap){
+/* Brillo general: 3 niveles. Menos brillo = LEDs y batería duran más */
+const BRIGHT = {baja:{f:0.25,name:"Bajo"}, media:{f:0.55,name:"Medio"}, alta:{f:1,name:"Alto"}};
+let bright = (()=>{ try{ return JSON.parse(localStorage.getItem("bright"))||"media"; }catch(e){ return "media"; } })();
+function scaleRGB(rgb, f){ return rgb.map(v=> v ? Math.max(1, Math.round(v*f)) : 0); }
+function colorBytes(key, offOnTap, factor){
   if (!key) return new Uint8Array([0,0,0]);
-  const [r,g,b] = COLORS[key].rgb;
+  const [r,g,b] = scaleRGB(COLORS[key].rgb, factor ?? BRIGHT[bright].f);
   return offOnTap ? new Uint8Array([g,b,r,1]) : new Uint8Array([g,b,r]);
 }
 
@@ -747,13 +753,15 @@ function openWizard(cfg, idx=-1){
   $("wizTitle").textContent = "Crear: "+LOGICS[C.logic].name;
   // inputs simples
   for (const id of ["seqOrder","rotSpeed","timeout","delayMin","delayMax","durTime","durHits","rest"]){ $(id).value=C[id]; $(id).oninput=()=>{ C[id]= $(id).type==="number" ? parseFloat($(id).value) : $(id).value; }; }
+  $("wizPrev").checked=wizPreviewOn;
+  $("wizPrev").onchange=()=>{ wizPreviewOn=$("wizPrev").checked; store.set("wizPreview",wizPreviewOn); if(wizPreviewOn) startWizPreview(); else stopWizPreview(); };
   $("actName").value=C.name; $("actName").oninput=()=>C.name=$("actName").value;
   document.querySelectorAll(".lopt").forEach(o=>o.style.display = o.dataset.for.split(" ").includes(C.logic)?"":"none");
   palette("decoyPal", C.decoyCols, true, ks=>C.decoyCols=ks);
   showStep();
 }
 function refreshWizard(){
-  clampAll(); ensurePlayers();
+  clampAll(); ensurePlayers(); startWizPreview();
   document.querySelectorAll(".stepper").forEach(st=>{
     const k=st.dataset.k, [a,b]=LIM[k]();
     st.innerHTML=""; const minus=mkBtn("−","",()=>{C[k]--;refreshWizard();}), plus=mkBtn("+","",()=>{C[k]++;refreshWizard();});
@@ -807,7 +815,7 @@ function showStep(){
 }
 $("wizNext").onclick=()=>{ if(wstep<3){ wstep++; showStep(); } };
 $("wizBack").onclick=()=>{ if(wstep>1){ wstep--; showStep(); } else showActHome(); };
-function showActHome(){ $("wizard").style.display="none"; $("actHome").style.display=""; renderSaved(); }
+function showActHome(){ stopWizPreview(); $("wizard").style.display="none"; $("actHome").style.display=""; renderSaved(); }
 $("btnSave").onclick=()=>{
   const list=store.get("acts",[]); const cfg=JSON.parse(JSON.stringify(C));
   if (editIdx>=0 && list[editIdx]) list[editIdx]=cfg; else { list.push(cfg); editIdx=list.length-1; }
@@ -983,6 +991,7 @@ function onTap(pod, wasColor, ms){
 }
 
 async function startRun(cfg, onHit){
+  stopWizPreview();
   const c=JSON.parse(JSON.stringify(cfg));
   const pods=connectedPods().sort((a,b)=>a.num-b.num);
   const need=c.stations*c.podsPer;
@@ -1078,6 +1087,36 @@ function logLine(t, cls){
   d.textContent=s+t; const L=$("log"); L.prepend(d); while(L.children.length>300) L.lastChild.remove();
 }
 
+/* ============ Pulso de armado (mientras diseñas la actividad) ============
+   Cada estación da un pulso tenue y corto con los colores de sus jugadores:
+   ~15% de brillo, 0.25 s encendido cada 2 s (≈12% del tiempo) → cuida LEDs y batería. */
+let wizTimer=null, wizPreviewOn = store.get("wizPreview", true);
+function wizAssignment(){
+  if (!C) return [];
+  const pods=connectedPods().sort((a,b)=>a.num-b.num);
+  const out=[];
+  for (let s=0;s<C.stations;s++){
+    const cols=(C.players[s]||[]).map(p=>p.color); if(!cols.length) continue;
+    pods.slice(s*C.podsPer,(s+1)*C.podsPer).forEach((p,k)=>out.push({p, s, col:cols[k%cols.length]}));
+  }
+  return out;
+}
+function startWizPreview(){
+  if (wizTimer || !wizPreviewOn) return;
+  wizTimer=setInterval(async ()=>{
+    if ($("wizard").style.display==="none" || E.active){ stopWizPreview(); return; }
+    const a=wizAssignment();
+    slots.forEach(p=>{ if(p){ const x=a.find(y=>y.p===p); const st=x?x.s:null; if(p.station!==st){ p.station=st; render(p);} } });
+    a.forEach(({p,col})=>{ if(!p.color && !p.owner) p.write(colorBytes(col,false,0.15)); });
+    await sleep(250);
+    a.forEach(({p})=>{ if(!p.color && !p.owner) p.write(colorBytes(null)); });
+  }, 2000);
+}
+function stopWizPreview(){
+  if (wizTimer){ clearInterval(wizTimer); wizTimer=null; }
+  slots.forEach(p=>{ if(p && p.station!=null && !E.active){ p.station=null; render(p); } });
+}
+
 /* ============ Parpadeo en espera ============ */
 /* Los Pods conectados y sin usar parpadean suave para saber que siguen enlazados */
 let idleBlink = store.get("idleBlink", true);
@@ -1085,8 +1124,14 @@ const IDLE_ON = new Uint8Array([40,60,0]);   // G,B,R → cian tenue
 function blinkLabel(){ $("btnBlink").textContent = "💤 Parpadeo: " + (idleBlink ? "sí" : "no"); }
 $("btnBlink").onclick = ()=>{ idleBlink=!idleBlink; store.set("idleBlink", idleBlink); blinkLabel(); };
 blinkLabel();
+function brightLabel(){ $("btnBright").textContent="☀ Brillo: "+BRIGHT[bright].name; }
+$("btnBright").onclick=()=>{
+  const k=Object.keys(BRIGHT); bright=k[(k.indexOf(bright)+1)%k.length]; store.set("bright",bright); brightLabel();
+  slots.forEach(p=>{ if(p && p.connected && p.color) p.write(colorBytes(p.color,p.offOnTap)); });
+};
+brightLabel();
 setInterval(()=>{
-  if (!idleBlink || (E.active && !E.waitStart && E.stations)) return;   // durante una actividad no parpadea
+  if (!idleBlink || wizTimer || (E.active && !E.waitStart && E.stations)) return;   // durante una actividad no parpadea
   slots.forEach(p=>{
     if (!p || p.status!=="on" || p.color || p.owner) return;
     p.write(IDLE_ON).then(()=>sleep(160)).then(()=>{ if(!p.color) p.write(colorBytes(null)); });
